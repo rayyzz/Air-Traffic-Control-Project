@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Traffic Control</title>
+    <script>
+        let socket = new WebSocket("ws://127.0.0.1:8000/ws");
+
+        socket.onmessage = function(event) {
+            let data = JSON.parse(event.data);
+            updateUI(data.runways, data.planes);
+        };
+
+        async function loadData() {
+            let runwaysResponse = await fetch("http://127.0.0.1:8000/runways/");
+            let runways = await runwaysResponse.json();
+
+            let planesResponse = await fetch("http://127.0.0.1:8000/planes/");
+            let planes = await planesResponse.json();
+
+            updateUI(runways, planes);
+        }
+
+        async function addPlane() {
+            let name = document.getElementById("planeName").value;
+            let location = document.getElementById("planeLocation").value;
+            let id = Math.floor(Math.random() * 100);
+
+            await fetch("http://127.0.0.1:8000/planes/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, name, location })
+            });
+        }
+
+        async function simulateMovePlane(id, newLocation) {
+            await fetch(`http://127.0.0.1:8000/planes/${id}/simulate-move`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ new_location: newLocation })
+            });
+        }
+
+        function updateUI(runways, planes) {
+            document.getElementById("runways").innerHTML = runways.map(r => 
+                `<li>${r.name} - ${r.occupied ? 'Occupied' : 'Available'}</li>`
+            ).join('');
+
+            document.getElementById("planes").innerHTML = planes.map(p => 
+                `<li>${p.name} at ${p.location} - ${p.status}
+                <button onclick="simulateMovePlane(${p.id}, 'Runway 2')">Move to Runway 2</button>
+                </li>`
+            ).join('');
+        }
+    </script>
+</head>
+<body onload="loadData()">
+    <h1>Air Traffic Control</h1>
+
+    <h2>Runways</h2>
+    <ul id="runways"></ul>
+
+    <h2>Planes</h2>
+    <ul id="planes"></ul>
+
+    <h3>Add Plane</h3>
+    <input type="text" id="planeName" placeholder="Plane Name">
+    <input type="text" id="planeLocation" placeholder="Runway Name">
+    <button onclick="addPlane()">Add Plane</button>
+</body>
+</html>
